@@ -1,0 +1,4 @@
+/.env
+/ara.traineddata
+/node_modules
+/pnpm-lock.yaml

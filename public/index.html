@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poster Validator</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <h1>🗳️ Poster Validator</h1>
+        
+        <form id="form" class="upload-area">
+            <input type="file" id="file" accept="image/*" required>
+            <div id="placeholder" class="placeholder">
+                <span>📤</span> Drop image or click to upload
+            </div>
+            <img id="preview" class="preview hidden">
+            <button type="submit" id="btn">Validate →</button>
+        </form>
+
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div> Analyzing...
+        </div>
+
+        <div id="result" class="result hidden"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('form');
+        const file = document.getElementById('file');
+        const preview = document.getElementById('preview');
+        const placeholder = document.getElementById('placeholder');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+        const btn = document.getElementById('btn');
+
+        file.onchange = e => {
+            if (e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    preview.src = e.target.result;
+                    preview.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                };
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        };
+
+        form.onsubmit = async e => {
+            e.preventDefault();
+            if (!file.files[0]) return;
+
+            const formData = new FormData();
+            formData.append('poster', file.files[0]);
+
+            loading.classList.remove('hidden');
+            result.classList.add('hidden');
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/validate', { method: 'POST', body: formData });
+                const data = await res.json();
+                render(data);
+            } catch (err) {
+                result.innerHTML = `<div class="error">❌ ${err.message}</div>`;
+                result.classList.remove('hidden');
+            } finally {
+                loading.classList.add('hidden');
+                btn.disabled = false;
+            }
+        };
+
+        function render(d) {
+            const cat = d.categories || {};
+            const p = cat.prohibitedContent || {};
+            const a = cat.allowedContent || {};
+            const e = cat.languageEthics || {};
+            
+            const violations = (p.items || []).filter(i => i.found);
+            const unauthorized = a.unauthorizedContent || [];
+            const ethicsFailed = (e.items || []).filter(i => !i.passed);
+            
+            const hasProblems = violations.length || unauthorized.length || ethicsFailed.length;
+
+            result.innerHTML = `
+                <div class="card ${d.isCompliant ? 'pass' : 'fail'}">
+                    <div class="header">
+                        <span class="status">${d.isCompliant ? '✅ Compliant' : '❌ Non-Compliant'}</span>
+                        <span class="score">${d.overallScore}/100</span>
+                    </div>
+                    <p class="summary">${d.summary}</p>
+                    
+                    <div class="scores">
+                        <div class="sc ${p.status}"><small>Prohibited</small><b>${p.score || 0}</b></div>
+                        <div class="sc ${a.status}"><small>Content</small><b>${a.score || 0}</b></div>
+                        <div class="sc ${e.status}"><small>Ethics</small><b>${e.score || 0}</b></div>
+                    </div>
+
+                    ${hasProblems ? `
+                        <div class="problems">
+                            <h4>⚠️ Issues Found</h4>
+                            ${violations.map(i => `<div class="issue violation">🚫 ${i.ruleName}: ${i.details}</div>`).join('')}
+                            ${unauthorized.map(i => `<div class="issue warning">⚠️ Unauthorized: ${i.description}</div>`).join('')}
+                            ${ethicsFailed.map(i => `<div class="issue violation">📜 ${i.ruleName}: ${i.details}</div>`).join('')}
+                        </div>
+                    ` : '<p class="ok">✓ All checks passed</p>'}
+
+                    ${d.recommendations?.length ? `
+                        <details class="recs">
+                            <summary>💡 Recommendations (${d.recommendations.length})</summary>
+                            <ul>${d.recommendations.map(r => `<li>${r}</li>`).join('')}</ul>
+                        </details>
+                    ` : ''}
+
+                    <details class="full">
+                        <summary>View full report</summary>
+                        ${d.extractedText ? `
+                        <div class="section text-section">
+                            <h5>📝 Extracted Text (AI Vision)</h5>
+                            <div class="extracted-text" dir="rtl">${d.extractedText.rawText || 'No text detected'}</div>
+                            <div class="text-meta">
+                                <span>Language: ${d.extractedText.language || 'Unknown'}</span>
+                                ${d.extractedText.containsNonArabic ? '<span class="warn">⚠️ Contains non-Arabic</span>' : ''}
+                            </div>
+                        </div>
+                        ` : ''}
+                        <div class="section">
+                            <h5>🚫 Prohibited Content</h5>
+                            ${(p.items || []).map(i => `
+                                <div class="row ${i.found ? 'bad' : 'good'}">
+                                    <span>${i.found ? '❌' : '✓'} ${i.ruleName}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="section">
+                            <h5>📋 Detected Content</h5>
+                            ${(a.detectedItems || []).map(item => `
+                                <div class="row good"><span>✓ ${item}</span></div>
+                            `).join('')}
+                            ${unauthorized.length ? `
+                                <h5 style="margin-top:8px;color:#f66">⚠️ Unauthorized Content</h5>
+                                ${unauthorized.map(i => `
+                                    <div class="row bad"><span>✗ ${i.description}</span></div>
+                                `).join('')}
+                            ` : ''}
+                        </div>
+                        <div class="section">
+                            <h5>📜 Language & Ethics</h5>
+                            ${(e.items || []).map(i => `
+                                <div class="row ${i.passed ? 'good' : 'bad'}">
+                                    <span>${i.passed ? '✓' : '❌'} ${i.ruleName}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </details>
+                </div>
+            `;
+            result.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,139 @@
+// src/services/ai.service.js
+import { OpenAI } from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPEN_AI_API_KEY,
+  baseURL: process.env.OPEN_AI_BASE_URL,
+});
+
+const VALIDATION_PROMPT = `You are an expert Omani election poster compliance validator. Analyze the provided election campaign poster image carefully.
+
+**IMPORTANT - TEXT READING INSTRUCTIONS:**
+1. READ ALL TEXT directly from the image yourself - do not rely solely on the OCR below
+2. The OCR text below is just a REFERENCE that may contain errors
+3. Use your vision capabilities to accurately read Arabic and any other text in the image
+4. Compare what you read with the OCR and use the more accurate version
+
+**OCR REFERENCE (may contain errors):**
+"{ocrText}"
+
+**VALIDATION RULES:**
+
+=== PROHIBITED CONTENT (Must NOT appear) ===
+1. LOGOS_PRIVATE: Logos of private institutions or companies
+2. STATE_EMBLEM: Official state emblem of Oman
+3. NATIONAL_FLAG: Omani national flag or any national flags
+4. ELECTION_LOGO: Official election commission logos
+5. STATE_ENTITIES: Logos of state administrative units or public legal entities (ministries, government agencies)
+6. RELIGIOUS_SYMBOLS: Religious symbols, icons, or imagery (mosques, crosses, crescents used symbolically)
+7. HISTORICAL_TRIBAL: Historical symbols, tribal emblems, or clan insignias
+8. PUBLIC_FIGURES: Photos or references to OTHER public figures, celebrities, or government officials (NOT the candidate themselves - the candidate's own photo is ALLOWED and should NOT trigger this rule)
+
+=== ALLOWED CONTENT (Only these are permitted - NOT required, just the only things allowed) ===
+Campaign materials may ONLY contain the following (anything else is a violation):
+1. CANDIDATE_PHOTO: Candidate's personal photograph
+2. CANDIDATE_NAME: Candidate's full name and address
+3. CV_QUALIFICATIONS: CV and academic/professional qualifications (certified by competent authorities)
+4. CANDIDATE_VISION: Candidate's vision for serving the wilaya (optional, within legal powers)
+
+=== LANGUAGE & ETHICS ===
+1. ARABIC_ONLY: All content must be in Arabic language only (no English, no other languages)
+2. PUBLIC_ORDER: No words, images, or symbols that violate public order or morality
+3. NO_DECEPTION: No misleading, false, or deceptive information
+4. NO_DEFAMATION: No defamation, slander, or negative references to other candidates
+
+**IMPORTANT INSTRUCTIONS FOR "found" FIELD:**
+- For prohibitedContent items, set "found": true ONLY if you detect an actual VIOLATION
+- If no violation is detected, set "found": false
+- The candidate's own photo is NOT a violation of PUBLIC_FIGURES rule - only OTHER public figures are violations
+- When "found": false, it means the poster PASSES this check (no prohibited content detected)
+
+**OUTPUT FORMAT:**
+Return a JSON object with this exact structure:
+{
+  "isCompliant": boolean,
+  "overallScore": number (0-100),
+  "summary": "Brief 1-2 sentence summary of compliance status",
+  "categories": {
+    "prohibitedContent": {
+      "score": number (0-100, higher means cleaner/no violations),
+      "status": "pass" | "fail" | "warning",
+      "items": [
+        {
+          "rule": "RULE_CODE",
+          "ruleName": "Human readable rule name",
+          "found": boolean (TRUE = violation detected, FALSE = no violation/clear),
+          "severity": "critical" | "major" | "minor",
+          "confidence": number (0-100),
+          "details": "Specific description of what was found or that no violation was detected"
+        }
+      ]
+    },
+    "allowedContent": {
+      "score": number (0-100, higher means no unauthorized content),
+      "status": "pass" | "fail" | "warning",
+      "detectedItems": ["List of content types found on poster (e.g. candidate photo, name, CV, etc.)"],
+      "unauthorizedContent": [
+        {
+          "description": "What unauthorized content was found",
+          "severity": "critical" | "major" | "minor",
+          "confidence": number (0-100)
+        }
+      ]
+    },
+    "languageEthics": {
+      "score": number (0-100),
+      "status": "pass" | "fail" | "warning",
+      "items": [
+        {
+          "rule": "RULE_CODE",
+          "ruleName": "Human readable rule name",
+          "passed": boolean,
+          "severity": "critical" | "major" | "minor",
+          "confidence": number (0-100),
+          "details": "Explanation of the check result"
+        }
+      ]
+    }
+  },
+  "recommendations": ["Array of specific recommendations for improvement"],
+  "extractedText": {
+    "rawText": "All text you read directly from the image (Arabic preserved)",
+    "language": "Detected language(s)",
+    "containsNonArabic": boolean
+  }
+}
+
+Analyze thoroughly. Read all text from the image yourself. For each prohibited item, clearly state whether a violation was found or not.`;
+
+export async function analyzePoster(imageBuffer, ocrText) {
+  const base64Image = imageBuffer.toString("base64");
+  const prompt = VALIDATION_PROMPT.replace(
+    "{ocrText}",
+    ocrText || "No text detected"
+  );
+
+  const response = await openai.chat.completions.create({
+    model: "qwen2.5-vl-72b-instruct",
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: prompt,
+          },
+          {
+            type: "image_url",
+            image_url: { url: `data:image/jpeg;base64,${base64Image}` },
+          },
+        ],
+      },
+    ],
+    response_format: { type: "json_object" },
+    max_tokens: 4096,
+    temperature: 0.1,
+  });
+
+  return response.choices[0].message.content;
+}

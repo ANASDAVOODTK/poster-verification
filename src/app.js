@@ -29,4 +29,4 @@ fastify.post("/api/validate", async (request, reply) => {
   return reply.send(JSON.parse(result));
 });
 
-fastify.listen({ port: process.env.PORT || 3000 });
+fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" });

@@ -124,7 +124,9 @@ export async function analyzePoster(imageBuffer) {
     ],
     response_format: { type: "json_object" },
     max_tokens: 4096,
-    temperature: 0.1,
+    temperature: 0,
+    top_p: 1,
+    seed: 42,
   });
 
   return response.choices[0].message.content;

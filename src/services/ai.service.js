@@ -2,20 +2,16 @@
 import { OpenAI } from "openai";
 
 const openai = new OpenAI({
-  apiKey: process.env.OPEN_AI_API_KEY,
-  baseURL: process.env.OPEN_AI_BASE_URL,
+  apiKey: process.env.DASHSCOPE_API_KEY,
+  baseURL: process.env.DASHSCOPE_BASE_URL,
 });
 
 const VALIDATION_PROMPT = `You are an expert Omani election poster compliance validator. Analyze the provided election campaign poster image carefully.
 
-**IMPORTANT - TEXT READING INSTRUCTIONS:**
-1. READ ALL TEXT directly from the image yourself - do not rely solely on the OCR below
-2. The OCR text below is just a REFERENCE that may contain errors
-3. Use your vision capabilities to accurately read Arabic and any other text in the image
-4. Compare what you read with the OCR and use the more accurate version
-
-**OCR REFERENCE (may contain errors):**
-"{ocrText}"
+**TEXT READING INSTRUCTIONS:**
+1. READ ALL TEXT directly from the image using your vision capabilities
+2. Pay special attention to Arabic text - read it accurately and completely
+3. Extract all visible text including names, slogans, qualifications, and any other written content
 
 **VALIDATION RULES:**
 
@@ -106,22 +102,18 @@ Return a JSON object with this exact structure:
 
 Analyze thoroughly. Read all text from the image yourself. For each prohibited item, clearly state whether a violation was found or not.`;
 
-export async function analyzePoster(imageBuffer, ocrText) {
+export async function analyzePoster(imageBuffer) {
   const base64Image = imageBuffer.toString("base64");
-  const prompt = VALIDATION_PROMPT.replace(
-    "{ocrText}",
-    ocrText || "No text detected"
-  );
 
   const response = await openai.chat.completions.create({
-    model: "qwen2.5-vl-72b-instruct",
+    model: "qwen3-vl-plus",
     messages: [
       {
         role: "user",
         content: [
           {
             type: "text",
-            text: prompt,
+            text: VALIDATION_PROMPT,
           },
           {
             type: "image_url",

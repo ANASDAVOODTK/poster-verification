@@ -4,7 +4,7 @@ import multipart from "@fastify/multipart";
 import path from "path";
 import { fileURLToPath } from "url";
 import fastifyStatic from "@fastify/static";
-import { analyzePoster } from "./services/ai.service.js";
+import { validatePoster } from "./services/ai.service.js";
 
 // In ESM, __dirname is not available, so we define it manually:
 const __filename = fileURLToPath(import.meta.url);
@@ -24,9 +24,9 @@ fastify.post("/api/validate", async (request, reply) => {
   const buffer = await file.toBuffer();
 
   // Vision LLM handles both OCR and compliance validation
-  const result = await analyzePoster(buffer);
+  const result = await validatePoster(buffer);
 
-  return reply.send(JSON.parse(result));
+  return reply.send(result);
 });
 
 fastify.listen({ port: process.env.PORT || 3000, host: "0.0.0.0" });

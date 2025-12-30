@@ -783,3 +783,111 @@ button:disabled {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+/* New Styles for Updated UI */
+.location-tag {
+  background: var(--bg-dark);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.good-compact {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #51cf6612;
+  border: 1px solid #51cf6633;
+  align-items: center;
+}
+
+.quote {
+  font-style: italic;
+  color: var(--text-muted);
+  border-left: 2px solid var(--border);
+  padding-left: 10px;
+  margin: 8px 0;
+  font-size: 0.85rem;
+}
+
+.rejection-card, .warnings-card {
+  background: var(--danger-dim);
+  border: 1px solid var(--danger);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.rejection-card h3, .warnings-card h3 {
+  color: var(--danger);
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.warnings-card {
+  background: var(--warning-dim);
+  border-color: var(--warning);
+}
+
+.warnings-card h3 {
+  color: var(--warning);
+}
+
+.info-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.info-card h3 {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+.info-item .label {
+    color: var(--text-muted);
+}
+
+.info-item .value {
+    font-weight: 500;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 32px;
+}
+
+.debug-details {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.debug-details summary {
+    cursor: pointer;
+    margin-bottom: 8px;
+}
+
+.debug-details pre {
+    background: var(--bg-dark);
+    padding: 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: monospace;
+}

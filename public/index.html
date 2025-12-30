@@ -1,12 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Poster Validator</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap"
+        rel="stylesheet">
 </head>
+
 <body>
     <header class="topbar">
         <h1>🗳️ Election Poster Validator</h1>
@@ -88,14 +92,23 @@
         function render(d, imageSrc) {
             const cat = d.categories || {};
             const p = cat.prohibitedContent || {};
-            const a = cat.allowedContent || {};
+            const c = cat.contentScope || {};
+            const r = cat.requiredContent || {};
             const e = cat.languageEthics || {};
-            
-            const violations = (p.items || []).filter(i => i.found);
-            const passed = (p.items || []).filter(i => !i.found);
-            const unauthorized = a.unauthorizedContent || [];
-            const ethicsFailed = (e.items || []).filter(i => !i.passed);
-            const ethicsPassed = (e.items || []).filter(i => i.passed);
+
+            const p_violations = (p.items || []).filter(i => i.found);
+            const p_passed = (p.items || []).filter(i => !i.found);
+
+            const c_violations = (c.items || []).filter(i => i.violated);
+            const c_passed = (c.items || []).filter(i => !i.violated);
+
+            const r_missing = (r.items || []).filter(i => !i.present);
+            const r_present = (r.items || []).filter(i => i.present);
+
+            const e_failed = (e.items || []).filter(i => !i.passed);
+            const e_passed = (e.items || []).filter(i => i.passed);
+
+            const warnings = d.warnings || [];
 
             uploadSection.classList.add('compact');
 
@@ -116,6 +129,7 @@
                                     <p class="summary-text">${d.summary}</p>
                                 </div>
                             </div>
+                            <!-- Overall core still exists -->
                             <div class="overall-score">
                                 <div class="score-circle ${d.overallScore >= 80 ? 'high' : d.overallScore >= 50 ? 'medium' : 'low'}">
                                     <span class="score-value">${d.overallScore}</span>
@@ -124,51 +138,58 @@
                             </div>
                         </div>
 
-                        <div class="scores-card">
-                            <div class="score-item ${p.status}">
-                                <span class="score-name">Prohibited Content</span>
-                                <span class="score-val">${p.score || 0}/100</span>
-                                <div class="score-bar"><div style="width: ${p.score || 0}%"></div></div>
-                            </div>
-                            <div class="score-item ${a.status}">
-                                <span class="score-name">Allowed Content</span>
-                                <span class="score-val">${a.score || 0}/100</span>
-                                <div class="score-bar"><div style="width: ${a.score || 0}%"></div></div>
-                            </div>
-                            <div class="score-item ${e.status}">
-                                <span class="score-name">Language & Ethics</span>
-                                <span class="score-val">${e.score || 0}/100</span>
-                                <div class="score-bar"><div style="width: ${e.score || 0}%"></div></div>
-                            </div>
+                        ${d.rejectionReason ? `
+                        <div class="rejection-card">
+                            <h3>⚠️ Reason for Rejection</h3>
+                            <p>${d.rejectionReason}</p>
                         </div>
+                        ` : ''}
 
-                        ${d.recommendations?.length ? `
-                        <div class="recommendations-card">
-                            <h3>💡 Recommendations</h3>
+                         ${warnings.length ? `
+                        <div class="warnings-card">
+                            <h3>⚠️ Warnings (False Positives?)</h3>
                             <ul>
-                                ${d.recommendations.map(r => `<li>${r}</li>`).join('')}
+                                ${warnings.map(w => `<li><strong>${w.rule}:</strong> ${w.message}</li>`).join('')}
                             </ul>
                         </div>
                         ` : ''}
+
+                        <!-- Metadata / Extracted Info -->
+                        <div class="info-card">
+                            <h3>📝 Extracted Info</h3>
+                            <div class="info-item">
+                                <span class="label">Name:</span>
+                                <span class="value">${d.extractedText?.candidateName || 'Not found'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="label">Phone:</span>
+                                <span class="value">${d.extractedText?.phoneNumber || 'None'}</span>
+                            </div>
+                             <div class="info-item">
+                                <span class="label">Doc Type:</span>
+                                <span class="value">${d.documentType?.actualType || 'Unknown'}</span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Right Column: Detailed Reports -->
                     <div class="right-column">
-                        <!-- Prohibited Content Check -->
+                        
+                        <!-- 1. Prohibited Content -->
                         <div class="report-card">
-                            <h3>🚫 Prohibited Content Check</h3>
+                            <h3>🚫 Prohibited Content</h3>
                             <div class="check-grid">
-                                ${violations.length ? `
+                                ${p_violations.length ? `
                                 <div class="check-section violations">
-                                    <h4>Violations Found (${violations.length})</h4>
-                                    ${violations.map(i => `
+                                    <h4>Violations Found (${p_violations.length})</h4>
+                                    ${p_violations.map(i => `
                                         <div class="check-item bad">
                                             <span class="check-icon">❌</span>
                                             <div class="check-content">
-                                                <strong>${i.ruleName}</strong>
+                                                <strong>${i.rule}</strong>
                                                 <p>${i.details}</p>
                                                 <div class="check-meta">
-                                                    <span class="severity ${i.severity}">${i.severity}</span>
+                                                     <span class="location-tag">📍 ${i.location || 'Unknown'}</span>
                                                     <span class="confidence">Confidence: ${i.confidence}%</span>
                                                 </div>
                                             </div>
@@ -177,12 +198,12 @@
                                 </div>
                                 ` : ''}
                                 <div class="check-section passed">
-                                    <h4>Passed Checks (${passed.length})</h4>
+                                    <h4>Passed Checks (${p_passed.length})</h4>
                                     <div class="passed-grid">
-                                        ${passed.map(i => `
-                                            <div class="check-item good">
+                                        ${p_passed.map(i => `
+                                            <div class="check-item good-compact">
                                                 <span class="check-icon">✓</span>
-                                                <span class="check-name">${i.ruleName}</span>
+                                                <span class="check-name">${i.rule}</span>
                                             </div>
                                         `).join('')}
                                     </div>
@@ -190,34 +211,68 @@
                             </div>
                         </div>
 
-                        <!-- Detected Content -->
+                        <!-- 2. Content Scope (Updated) -->
                         <div class="report-card">
-                            <h3>📋 Detected Content</h3>
-                            <div class="detected-items">
-                                ${(a.detectedItems || []).map(item => `
-                                    <span class="detected-tag">✓ ${item}</span>
-                                `).join('')}
-                            </div>
-                            ${unauthorized.length ? `
-                            <div class="unauthorized-section">
-                                <h4>⚠️ Unauthorized Content</h4>
-                                ${unauthorized.map(i => `
-                                    <div class="check-item bad">
-                                        <span class="check-icon">✗</span>
-                                        <div class="check-content">
-                                            <strong>${i.description}</strong>
-                                            <div class="check-meta">
-                                                <span class="severity ${i.severity}">${i.severity}</span>
-                                                <span class="confidence">Confidence: ${i.confidence}%</span>
+                            <h3>⚖️ Content Scope & Powers</h3>
+                             <div class="check-grid">
+                                ${c_violations.length ? `
+                                <div class="check-section violations">
+                                    <h4>Scope Violations (${c_violations.length})</h4>
+                                    ${c_violations.map(i => `
+                                        <div class="check-item bad">
+                                            <span class="check-icon">✗</span>
+                                            <div class="check-content">
+                                                <strong>${i.rule}</strong>
+                                                 <p>${i.explanation}</p>
+                                                ${i.violatingObjectives ? `<div class="quote">"${i.violatingObjectives.join('", "')}"</div>` : ''}
+                                                <div class="check-meta">
+                                                    <span class="confidence">Confidence: ${i.confidence}%</span>
+                                                </div>
                                             </div>
                                         </div>
+                                    `).join('')}
+                                </div>
+                                ` : ''}
+                                 <div class="check-section passed">
+                                    <h4>Passed Checks (${c_passed.length})</h4>
+                                     <div class="passed-grid">
+                                        ${c_passed.map(i => `
+                                            <div class="check-item good-compact">
+                                                <span class="check-icon">✓</span>
+                                                <span class="check-name">${i.rule}</span>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                         <!-- 3. Required Content -->
+                        <div class="report-card">
+                            <h3>✅ Required Elements</h3>
+                            <div class="ethics-grid">
+                                ${r_missing.map(i => `
+                                    <div class="ethics-item bad">
+                                        <div class="ethics-header">
+                                            <span class="check-icon">❌</span>
+                                            <strong>${i.element} Missing</strong>
+                                        </div>
+                                        <p>This element is mandatory for election posters.</p>
+                                    </div>
+                                `).join('')}
+                                ${r_present.map(i => `
+                                     <div class="ethics-item good">
+                                        <div class="ethics-header">
+                                            <span class="check-icon">✓</span>
+                                            <strong>${i.element} Present</strong>
+                                        </div>
+                                        <p>Quality: ${i.quality || 'Good'}</p>
                                     </div>
                                 `).join('')}
                             </div>
-                            ` : ''}
                         </div>
 
-                        <!-- Language & Ethics -->
+                        <!-- 4. Language & Ethics -->
                         <div class="report-card">
                             <h3>📜 Language & Ethics</h3>
                             <div class="ethics-grid">
@@ -225,13 +280,9 @@
                                     <div class="ethics-item ${i.passed ? 'good' : 'bad'}">
                                         <div class="ethics-header">
                                             <span class="check-icon">${i.passed ? '✓' : '❌'}</span>
-                                            <strong>${i.ruleName}</strong>
+                                            <strong>${i.rule}</strong>
                                         </div>
-                                        <p>${i.details}</p>
-                                        <div class="check-meta">
-                                            <span class="severity ${i.severity}">${i.severity}</span>
-                                            <span class="confidence">Confidence: ${i.confidence}%</span>
-                                        </div>
+                                        <p>${i.details || ''}</p>
                                     </div>
                                 `).join('')}
                             </div>
@@ -239,10 +290,19 @@
                     </div>
                 </div>
 
-                <button class="reset-btn" onclick="location.reload()">← Validate Another Poster</button>
+                <div class="actions">
+                     <button class="reset-btn" onclick="location.reload()">← Validate Another Poster</button>
+                     ${d.extractedText ? `
+                     <details class="debug-details">
+                        <summary>Debug: Raw Extracted Text</summary>
+                        <pre>${d.extractedText.rawText}</pre>
+                     </details>
+                     ` : ''}
+                </div>
             `;
             result.classList.remove('hidden');
         }
     </script>
 </body>
+
 </html>

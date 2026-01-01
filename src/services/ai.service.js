@@ -11,7 +11,7 @@ const openai = new OpenAI({
  * Optimized validation service with CoT and strict schema
  */
 export class ValidationService {
-  
+
   /**
    * Main validation method
    */
@@ -19,15 +19,15 @@ export class ValidationService {
     try {
       // Single-stage AI analysis with CoT
       const aiResult = await this.performAIAnalysis(imageBuffer);
-      
+
       // Post-process and validate schema
       const validatedResult = this.validateAndEnrichResult(aiResult);
-      
+
       return validatedResult;
-      
+
     } catch (error) {
       console.error('Validation error:', error);
-      
+
       return {
         isCompliant: false,
         overallScore: 0,
@@ -49,7 +49,7 @@ export class ValidationService {
    */
   async performAIAnalysis(imageBuffer) {
     const base64Image = imageBuffer.toString("base64");
-    
+
     const response = await openai.chat.completions.create({
       model: "qwen3-vl-plus",
       messages: [
@@ -82,12 +82,12 @@ export class ValidationService {
     });
 
     const result = JSON.parse(response.choices[0].message.content);
-    
+
     // Log trace for debugging
     if (result._analysis_trace) {
       console.log('AI Analysis Trace:', JSON.stringify(result._analysis_trace, null, 2));
     }
-    
+
     return result;
   }
 
@@ -122,6 +122,9 @@ export class ValidationService {
     // 4. Validate number detection logic (catch false positives)
     this.validateNumberDetection(result);
 
+    // 5. Deterministic Text Validation (Safety Net)
+    this.validateTextContent(result);
+
     // 5. Compute validation confidence based on trace quality
     result.validationConfidence = this.calculateConfidence(result);
 
@@ -149,22 +152,22 @@ export class ValidationService {
       // Non-election material should ALWAYS be non-compliant
       if (result.isCompliant === true) {
         console.warn('Logic error detected: Non-election material marked as compliant. Fixing...');
-        
+
         result.isCompliant = false;
         result.overallScore = 0;
-        
+
         // Update decision logic in trace
         if (result._analysis_trace) {
-          result._analysis_trace.step4_decision_logic = 
+          result._analysis_trace.step4_decision_logic =
             `Non-compliant because this is not election propaganda (${result.documentType.actualType}). ` +
             `It cannot be validated as an election poster.`;
         }
-        
+
         // Ensure rejection reason exists
         if (!result.rejectionReason) {
           result.rejectionReason = this.generateRejectionReason(result);
         }
-        
+
         // Add correction metadata
         result.metadata = result.metadata || {};
         result.metadata.logicCorrectionApplied = true;
@@ -178,12 +181,12 @@ export class ValidationService {
    */
   validateSchema(result) {
     const errors = [];
-    
+
     // Required top-level fields
     if (typeof result.isCompliant !== 'boolean') errors.push('Missing isCompliant');
     if (typeof result.overallScore !== 'number') errors.push('Missing overallScore');
     if (!result.summary) errors.push('Missing summary');
-    
+
     // documentType validation
     if (!result.documentType) {
       errors.push('Missing documentType');
@@ -193,7 +196,7 @@ export class ValidationService {
       }
       if (!result.documentType.actualType) errors.push('Missing documentType.actualType');
     }
-    
+
     // categories validation (must exist even if empty)
     if (!result.categories) {
       errors.push('Missing categories');
@@ -203,12 +206,12 @@ export class ValidationService {
       if (!result.categories.contentScope) errors.push('Missing contentScope');
       if (!result.categories.languageEthics) errors.push('Missing languageEthics');
     }
-    
+
     // extractedText validation
     if (!result.extractedText) {
       errors.push('Missing extractedText');
     }
-    
+
     return errors;
   }
 
@@ -219,11 +222,11 @@ export class ValidationService {
     const candidateNumberItem = result.categories?.prohibitedContent?.items?.find(
       item => item.rule === 'CANDIDATE_NUMBER'
     );
-    
+
     if (candidateNumberItem?.found) {
       const details = candidateNumberItem.details?.toLowerCase() || '';
       const extractedText = result.extractedText?.rawText?.toLowerCase() || '';
-      
+
       // Check for false positive indicators
       const falsePositivePatterns = [
         /\d{8,}/,  // Phone numbers (8+ digits)
@@ -232,7 +235,7 @@ export class ValidationService {
         /للتواصل.*\d+|\d+.*للتواصل/,  // Contact numbers
         /رؤية.*\d{4}|\d{4}.*رؤية/,  // Vision statements
       ];
-      
+
       // If details suggest false positive, add warning
       for (const pattern of falsePositivePatterns) {
         if (pattern.test(details) || pattern.test(extractedText)) {
@@ -247,7 +250,7 @@ export class ValidationService {
           break;
         }
       }
-      
+
       // Check if "رقم المرشح" or "المرشح رقم" exists (true positive indicator)
       const hasCandidateContext = /رقم\s*المرشح|المرشح\s*رقم/.test(extractedText);
       if (!hasCandidateContext) {
@@ -263,35 +266,121 @@ export class ValidationService {
   }
 
   /**
+   * Deterministic validation for prohibited text patterns
+   * acts as a safety net when AI misses explicit violations
+   */
+  validateTextContent(result) {
+    const text = result.extractedText?.rawText || "";
+
+    // 1. Check for "Job Seeker File" (Opening/Handling)
+    // Pattern: "فتح ملف الباحثين" or "ملف الباحثين"
+    const jobSeekerPattern = /فتح\s*ملف\s*باحثين|ملف\s*الباحثين/i;
+    if (jobSeekerPattern.test(text)) {
+      const match = text.match(jobSeekerPattern)[0];
+      this.flagDeterministicViolation(result, {
+        rule: "OBJECTIVES_OUTSIDE_POWERS",
+        violatingObjectives: [match],
+        explanation: "Prohibited content: 'Job Seeker File' (ملف الباحثين) is an executive authority matter."
+      }, "Prohibited content: Mentioning 'Job Seeker File' (ملف الباحثين) is strictly prohibited.");
+    }
+
+    // 2. Check for "Ensuring Services Complete" (guaranteeing outcome)
+    // Pattern: "أن تكون ... مكتملة" or "ضمان ... خدمات"
+    const completeServicePattern = /أن\s*تكون.*مكتملة|ضمان.*خدمات|ضمان.*حصول/i;
+    if (completeServicePattern.test(text)) {
+      const match = text.match(completeServicePattern)[0];
+      this.flagDeterministicViolation(result, {
+        rule: "OBJECTIVES_OUTSIDE_POWERS",
+        violatingObjectives: [match],
+        explanation: "Prohibited content: Guaranteeing services or completeness is outside Shura powers."
+      }, "Prohibited content: Candidates cannot guarantee service completion or outcomes.");
+    }
+
+    // 3. Check for "Seek to obtain" (Executive promise)
+    // Pattern: "سأسعى على حصول" or "سأسعى للحصول"
+    const seekObtainPattern = /سأسعى\s*(على|لـ?)\s*حصول/i;
+    if (seekObtainPattern.test(text)) {
+      const match = text.match(seekObtainPattern)[0];
+      this.flagDeterministicViolation(result, {
+        rule: "ELECTION_PROMISES",
+        violatingObjectives: [match],
+        explanation: "Prohibited Grammar: 'Seeking to obtain' (سأسعى للحصول) implies executive benefit delivery."
+      }, "Prohibited language: 'Seeking to obtain' (سأسعى للحصول) is a prohibited form of promise.");
+    }
+  }
+
+  /**
+   * Helper to apply a deterministic violation
+   */
+  flagDeterministicViolation(result, violationData, rejectionMsg) {
+    // 1. Mark as non-compliant
+    result.isCompliant = false;
+    result.overallScore = 0;
+
+    // 2. Set rejection reason if empty
+    if (!result.rejectionReason) {
+      result.rejectionReason = rejectionMsg;
+    } else if (!result.rejectionReason.includes(rejectionMsg)) {
+      // Append if different
+      result.rejectionReason += ` | ${rejectionMsg}`;
+    }
+
+    // 3. Add to content scope violations
+    if (!result.categories) result.categories = {};
+    if (!result.categories.contentScope) result.categories.contentScope = { status: "fail", items: [] };
+
+    // Check if duplicate exists
+    const exists = result.categories.contentScope.items.some(item =>
+      item.rule === violationData.rule && item.violatingObjectives?.[0] === violationData.violatingObjectives[0]
+    );
+
+    if (!exists) {
+      result.categories.contentScope.status = "fail";
+      result.categories.contentScope.items.push({
+        rule: violationData.rule,
+        violated: true,
+        confidence: 100,
+        violatingObjectives: violationData.violatingObjectives,
+        explanation: violationData.explanation
+      });
+    }
+
+    // 4. Update trace to reflect system intervention
+    if (result._analysis_trace) {
+      result._analysis_trace.step4_decision_logic += ` [System enforced violation: ${violationData.explanation}]`;
+    }
+  }
+
+  /**
    * Calculate confidence based on analysis trace quality
    */
   calculateConfidence(result) {
     let confidence = 90; // Base confidence
-    
+
     const trace = result._analysis_trace;
-    
+
     // Reduce confidence if trace is empty/generic
     if (!trace.step1_content_extraction || trace.step1_content_extraction === "Not provided") {
       confidence -= 20;
     }
-    
+
     if (!trace.step3_violations_found || trace.step3_violations_found.length === 0) {
       if (!result.isCompliant) {
         confidence -= 10; // Non-compliant but no violations listed in trace
       }
     }
-    
+
     // Increase confidence if document type reasoning is clear
     if (result.documentType?.reasoning && result.documentType.reasoning.length > 20) {
       confidence += 5;
     }
-    
+
     // Reduce confidence for low model confidence scores
     const avgConfidence = this.getAverageItemConfidence(result);
     if (avgConfidence < 70) {
       confidence -= 10;
     }
-    
+
     return Math.max(50, Math.min(100, confidence));
   }
 
@@ -300,17 +389,17 @@ export class ValidationService {
    */
   getAverageItemConfidence(result) {
     const confidences = [];
-    
+
     result.categories?.prohibitedContent?.items?.forEach(item => {
       if (item.confidence) confidences.push(item.confidence);
     });
-    
+
     result.categories?.contentScope?.items?.forEach(item => {
       if (item.confidence) confidences.push(item.confidence);
     });
-    
+
     if (confidences.length === 0) return 85;
-    
+
     return confidences.reduce((a, b) => a + b, 0) / confidences.length;
   }
 
@@ -339,10 +428,10 @@ export class ValidationService {
     // Check prohibited content
     const prohibited = result.categories?.prohibitedContent?.items || [];
     const violations = prohibited.filter(item => item.found);
-    
+
     const hasNumber = violations.find(v => v.rule === 'CANDIDATE_NUMBER');
     const hasLogo = violations.find(v => v.rule === 'ELECTION_LOGO');
-    
+
     if (hasNumber && hasLogo) {
       return "Removal of the candidate's number and election logo is required";
     }
@@ -352,7 +441,7 @@ export class ValidationService {
     if (hasLogo) {
       return "Please remove the election logo";
     }
-    
+
     const historical = violations.find(v => v.rule === 'HISTORICAL_SYMBOLS');
     if (historical) {
       const detail = historical.details.toLowerCase();
@@ -364,17 +453,17 @@ export class ValidationService {
       }
       return "Please remove the historical symbol from the image background";
     }
-    
+
     const publicFigures = violations.find(v => v.rule === 'PUBLIC_FIGURES');
     if (publicFigures) {
       return "The poster contains public figures";
     }
-    
+
     const stateEmblem = violations.find(v => v.rule === 'STATE_EMBLEM');
     if (stateEmblem) {
       return "Please remove the state emblem";
     }
-    
+
     const flag = violations.find(v => v.rule === 'NATIONAL_FLAG');
     if (flag) {
       return "Please remove the national flag";
@@ -383,22 +472,22 @@ export class ValidationService {
     // Check content scope
     const contentScope = result.categories?.contentScope?.items || [];
     const scopeViolations = contentScope.filter(item => item.violated);
-    
+
     const outsidePowers = scopeViolations.find(v => v.rule === 'OBJECTIVES_OUTSIDE_POWERS');
     if (outsidePowers) {
       return "Most of the objectives mentioned fall outside the legally defined powers of the Shura Council members";
     }
-    
+
     const promise = scopeViolations.find(v => v.rule === 'ELECTION_PROMISES');
     if (promise) {
       return "The content of the objective involves an election promise";
     }
-    
+
     const deviation = scopeViolations.find(v => v.rule === 'DEVIATION_FROM_SCOPE');
     if (deviation) {
       return "The poster deviated from the content of the election campaign, which includes the candidate's picture, biography, electoral vision, goals, or roles";
     }
-    
+
     const previousTerm = scopeViolations.find(v => v.rule === 'PREVIOUS_TERM_EXPLOITATION');
     if (previousTerm) {
       return "Cannot exploit the previous term achievements";
@@ -408,7 +497,7 @@ export class ValidationService {
     const required = result.categories?.requiredContent?.items || [];
     const missingPhoto = required.find(item => item.element === 'CANDIDATE_PHOTO' && !item.present);
     const missingName = required.find(item => item.element === 'CANDIDATE_NAME' && !item.present);
-    
+
     if (missingPhoto || missingName) {
       return "Election campaigning is limited to the following: candidate photo, name, CV, and vision";
     }
@@ -432,11 +521,11 @@ export async function validatePoster(imageBuffer) {
 export async function validatePosters(imageBuffers) {
   const service = new ValidationService();
   const results = [];
-  
+
   for (const buffer of imageBuffers) {
     const result = await service.validatePoster(buffer);
     results.push(result);
   }
-  
+
   return results;
 }

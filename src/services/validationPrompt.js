@@ -89,21 +89,26 @@ If this is NOT election propaganda (training ad, press interview, proposal, news
    - ✅ Recommend solutions: "سأوصي", "سأقترح حلول"
    - ✅ Represent constituents: "سأكون صوتكم", "سأمثل مصالحكم"
 
-   **Shura Council NOT ALLOWED (Executive Authority):**
+   **⛔ CRITICAL AND IMMEDIATE REJECTIONS (DO NOT INTERPRET - FLAG IMMEDIATELY):**
+   - ❌ **"Job Seeker File" (ملف الباحثين)**: Any mention of "opening" or "handling" this file (e.g., "فتح ملف الباحثين", "استثمارية فتح ملف").
+     - **Constraint:** Do NOT rationalize this as "studying" or "investment". Even if it says "Investment opening" (استثمارية فتح), it is a prohibited executive promise.
+   - ❌ **"Ensuring Services" (أن تكون ... مكتملة / ضمان)**: Any guarantee that plans/services will be "complete" (e.g., "أن تكون المخططات مكتملة", "أن تكون المخططات السكنية... مكتملة").
+     - **Constraint:** Do NOT rationalize this as "oversight". It is a prohibited guarantee of outcome.
+   - ❌ **"Seeking to obtain" (سأسعى على حصول / سأسعى للحصول)**: Strictly prohibited grammar/intent.
+   - ❌ **"Opening a file" (فتح ملف)**: Prohibited administrative action.
+
+   **Shura Council NOT ALLOWED (Executive Authority - General):**
    - ❌ Build infrastructure: "سأبني طرق", "سأنشئ مدارس"
    - ❌ Allocate budgets: "سأوفر ميزانية", "سأخصص أموال"
    - ❌ Implement projects: "سأنفذ", "سأقيم مشروع"
    - ❌ Hire staff: "سأعين موظفين"
-   - ❌ Directly solve operational issues: "سأصلح الشوارع", "سأوفر الكهرباء"
-   - ❌ Provide services/benefits: "سأوفر بطاقات", "بطاقة تأمين", "سأضمن الحصول"
+   - ❌ Directly solve operational issues: "سأصلح الشوارع", "سأوفر الكهرباء", "سأفتح ملف"
+   - ❌ Provide services/benefits: "سأوفر بطاقات", "بطاقة تأمين", "سأضمن الحصول", "أن تكون المخططات مكتملة"
    - ❌ Healthcare promises: "سأوفر علاج مجاني", "سأحصل على/سأوفر بطاقات تأمين صحي", "العلاج بالمجان", "تأمين صحي للمتقاعدين"
-   - ❌ Employment promises: "سأوظف", "سأوفر وظائف", "سأحل البطالة"
+   - ❌ Employment promises: "سأوظف", "سأوفر وظائف", "سأحل البطالة", "فتح ملف الباحثين"
    - ❌ Direct financial benefits: "سأزيد الرواتب", "سأوفر دعم مالي"
 
    **CRITICAL DISTINCTION - "SEEKING" VS "DOING":**
-   - ❌ **HARD VIOLATION:** "Seeking to obtain" (سأسعى للحصول على) OR "Seeking on obtaining" (سأسعى على حصول).
-     - **REASONING:** You cannot promise to "obtain" a benefit (cards, jobs, money). You can only promise to "propose laws".
-     - **RULE:** If the text says "s'as'a 'ala husul" (سأسعى على حصول) -> FLAGGED AS VIOLATION. NO EXCEPTIONS.
    - ✅ **ALLOWED:** "Seeking to propose legislation" (سأسعى لسن تشريع) to create a system validation.
 
    **Distinguishing Examples:**
@@ -116,16 +121,20 @@ If this is NOT election propaganda (training ad, press interview, proposal, news
    - ❌ VIOLATION: "سأوفر علاج مجاني في المستشفيات" (I will provide free treatment in hospitals)
    - ✅ ALLOWED: "سأدرس قضايا المتقاعدين وأوصي بحلول" (I will study retirees' issues and recommend solutions)
    - ❌ VIOLATION: "سأضمن حصول المتقاعدين على خدمات" (I will ensure retirees get services)
-
+   
 10. **ELECTION_PROMISES**: Specific commitments/guarantees (تعهدات انتخابية)
     - ❌ "أتعهد بـ", "أضمن", "سأحقق بالتأكيد"
     - ❌ Any promise of specific personal benefits (cards, money, jobs) even if "سأسعى" is used.
     - ✅ "سأعمل على تشريع", "سأسعى لسن قانون", "هدفي مراجعة القوانين" (legislative aspirations are OK)
 
 11. **PREVIOUS_TERM_EXPLOITATION**: Claiming personal credit for government projects
-    - Factual CV content is OK, promotional exploitation is not
+    - ❌ **VIOLATION:** Listing specific STATISTICS of parliamentary work (e.g., "Used 90 parliamentary tools", "Attended 50 sessions"). This is considered exploiting the office.
+    - ❌ **VIOLATION:** "I achieved X project", "I built Y school" (Personal credit for state projects).
+    - ✅ **ALLOWED:** General experience ("Member of Shura Council 2019-2023").
 
 12. **DEVIATION_FROM_SCOPE**: Content unrelated to campaign
+    - ❌ **VIOLATION:** "Organizational Chart of Campaign Team", "List of Team Members", "Sponsors".
+    - ❌ **VIOLATION:** Promoting a private company career (e.g., "CEO of X Company", "Manager at Y Corp"). Candidate biography should be general ("Businessman"), not a corporate advertisement.
     - Must relate to: candidate photo, biography, vision, goals within powers
 
 **TECHNICAL REQUIREMENTS:**

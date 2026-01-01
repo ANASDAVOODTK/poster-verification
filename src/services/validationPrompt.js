@@ -11,22 +11,25 @@ export const VALIDATION_PROMPT = `You are a Compliance Officer for Oman's Minist
 - **Deep Background Scan:** - Ignore the foreground person/text for a moment. Focus ONLY on the background layer.
     - **Look for "Watermarks":** Candidates often hide historical symbols as **faint, transparent, or white-on-white drawings** behind the text. 
     - Detect architectural outlines: Look for **crenellations** (square teeth on top of walls), **arches**, and **towers** fading into the white background.
+- **Scan for People:**
+    - **Count:** How many distinct people are in the image?
+    - **Action:** Are they shaking hands, receiving awards, or standing in a formal lineup?
+    - **Identity:** Is anyone wearing official government sash/medals or appearing as a "VVIP" guest?
 
 ### Step 2: Check Document Type (First Priority)
 **CRITICAL: Even if NOT election propaganda, you MUST return complete valid JSON.**
 
 If this is NOT election propaganda (training ad, press interview, proposal, news):
-- Set isElectionPropaganda=false
 - Set isCompliant=false (because it fails to be a valid election poster)
 - Set overallScore=0
 - Set actualType accordingly
 - Generate appropriate rejectionReason
-- Skip detailed violation checks (set all "found"/"violated" to false)
-- Still return complete JSON structure
+- **IMPORTANT:** STILL Process all violation checks. If you see specific violations (like Public Figures), flag them!
+- Return complete JSON structure
 
 **IMPORTANT LOGIC:**
-- isCompliant=true means "This IS valid election propaganda with no violations"
-- isCompliant=false means "This either: (a) is not election propaganda, OR (b) is election propaganda but has violations"
+- \`isCompliant = true\`  : This IS valid election propaganda with NO violations.
+- \`isCompliant = false\` : This is either (a) NOT election propaganda, or (b) IS election propaganda but has violations.
 
 ### Step 3: Evaluate Violations (If Election Propaganda)
 
@@ -62,6 +65,13 @@ If this is NOT election propaganda (training ad, press interview, proposal, news
 
 6. **PUBLIC_FIGURES**: Photos of OTHER officials/celebrities
    - Candidate's own photo is REQUIRED (not a violation)
+   - **CRITICAL CHECKS:**
+     - **MULTIPLE PEOPLE RULE:** If the image shows the candidate WITH another person (shaking hands, receiving award, standing together), you MUST flag this.
+     - **Look for:** Two men in Omani official dress (Dishdasha + Mussar) shaking hands or holding a plaque.
+     - **Heuristic:** One person = Candidate (Safe). Two people = Candidate + Public Official/VIP (VIOLATION).
+     - **Context:** Awards, ceremonies, and handshakes are nearly always violations involving public figures.
+     - **STRICT RULE:** Do NOT excuse "event attendees" or "organizers". If the candidate is shaking hands or standing with them, they are considered Public Figures/Officials.
+     - **Exceptions:** ONLY unidentifiable, blurred background crowds are OK.
 
 7. **TRIBAL_SYMBOLS**: Clan/tribal emblems, family crests
 
@@ -85,16 +95,32 @@ If this is NOT election propaganda (training ad, press interview, proposal, news
    - ❌ Implement projects: "سأنفذ", "سأقيم مشروع"
    - ❌ Hire staff: "سأعين موظفين"
    - ❌ Directly solve operational issues: "سأصلح الشوارع", "سأوفر الكهرباء"
+   - ❌ Provide services/benefits: "سأوفر بطاقات", "بطاقة تأمين", "سأضمن الحصول"
+   - ❌ Healthcare promises: "سأوفر علاج مجاني", "سأحصل على/سأوفر بطاقات تأمين صحي", "العلاج بالمجان", "تأمين صحي للمتقاعدين"
+   - ❌ Employment promises: "سأوظف", "سأوفر وظائف", "سأحل البطالة"
+   - ❌ Direct financial benefits: "سأزيد الرواتب", "سأوفر دعم مالي"
+
+   **CRITICAL DISTINCTION - "SEEKING" VS "DOING":**
+   - ❌ **HARD VIOLATION:** "Seeking to obtain" (سأسعى للحصول على) OR "Seeking on obtaining" (سأسعى على حصول).
+     - **REASONING:** You cannot promise to "obtain" a benefit (cards, jobs, money). You can only promise to "propose laws".
+     - **RULE:** If the text says "s'as'a 'ala husul" (سأسعى على حصول) -> FLAGGED AS VIOLATION. NO EXCEPTIONS.
+   - ✅ **ALLOWED:** "Seeking to propose legislation" (سأسعى لسن تشريع) to create a system validation.
 
    **Distinguishing Examples:**
    - ✅ ALLOWED: "سأعمل على تشريع يحسن التعليم" (I will work on legislation to improve education)
    - ❌ VIOLATION: "سأبني 10 مدارس جديدة" (I will build 10 new schools)
    - ✅ ALLOWED: "سأراقب أداء وزارة الصحة" (I will monitor Ministry of Health performance)
    - ❌ VIOLATION: "سأفتح مستشفى في الولاية" (I will open a hospital in the wilaya)
+   - ✅ ALLOWED: "سأقترح قانون للتأمين الصحي" (I will propose health insurance legislation)
+   - ❌ VIOLATION: "سأسعى للحصول على بطاقات" (I will seek to obtain cards) OR "سأسعى على حصول" (Grammatically incorrect but still a violation) -> **VIOLATION (Promising a specific executive benefit)**
+   - ❌ VIOLATION: "سأوفر علاج مجاني في المستشفيات" (I will provide free treatment in hospitals)
+   - ✅ ALLOWED: "سأدرس قضايا المتقاعدين وأوصي بحلول" (I will study retirees' issues and recommend solutions)
+   - ❌ VIOLATION: "سأضمن حصول المتقاعدين على خدمات" (I will ensure retirees get services)
 
 10. **ELECTION_PROMISES**: Specific commitments/guarantees (تعهدات انتخابية)
     - ❌ "أتعهد بـ", "أضمن", "سأحقق بالتأكيد"
-    - ✅ "سأعمل على", "سأسعى", "هدفي" (aspirational language is OK)
+    - ❌ Any promise of specific personal benefits (cards, money, jobs) even if "سأسعى" is used.
+    - ✅ "سأعمل على تشريع", "سأسعى لسن قانون", "هدفي مراجعة القوانين" (legislative aspirations are OK)
 
 11. **PREVIOUS_TERM_EXPLOITATION**: Claiming personal credit for government projects
     - Factual CV content is OK, promotional exploitation is not
